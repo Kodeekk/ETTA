@@ -1,0 +1,122 @@
+plugins {
+    id 'fabric-loom' version '1.14.4'
+    id 'maven-publish'
+    id 'org.jetbrains.kotlin.jvm' version '2.2.21'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.fabricmc.net/' }
+    maven { url = 'https://maven.parchmentmc.org' }
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/etta.accesswidener")
+}
+
+
+dependencies {
+    // Minecraft and mappings
+    // To change the versions see the gradle.properties file
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.layered {
+        officialMojangMappings()
+        parchment("org.parchmentmc.data:parchment-${project.minecraft_version}:${parchment_version}@zip")
+    }
+
+    // Fabric Loader and API
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modImplementation("net.fabricmc.fabric-api:fabric-command-api-v2:2.2.13+1.21")
+
+
+    // Fabric Language Kotlin
+    modImplementation "net.fabricmc:fabric-language-kotlin:${project.fabric_kotlin_version}"
+
+    // Kotlin serialization
+    implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0"
+
+    // Gson for JSON parsing
+    implementation "com.google.code.gson:gson:2.11.0"
+
+    // Mixin annotation processor (required for mixins to work)
+    annotationProcessor "net.fabricmc:sponge-mixin:0.12.5+mixin.0.8.5"
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+    kotlinOptions {
+        jvmTarget = "21"
+    }
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.base.archivesName.get()}"}
+    }
+}
+
+loom {
+    //accessWidenerPath = file("src/main/resources/etta.accesswidener")
+
+    mixin {
+        defaultRefmapName = "etta.refmap.json"
+        useLegacyMixinAp = true
+    }
+
+    runs {
+        client {
+            client()
+            setConfigName("Fabric Client")
+            ideConfigGenerated(true)
+            runDir("run")
+
+            // Enable mixin debugging
+            vmArgs("-Dmixin.debug=true", "-Dmixin.debug.export=true")
+        }
+        server {
+            server()
+            setConfigName("Fabric Server")
+            ideConfigGenerated(true)
+            runDir("run")
+        }
+    }
+}
+
+// configure the maven publication
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+
+    repositories {
+        // Add repositories to publish to here.
+    }
+}

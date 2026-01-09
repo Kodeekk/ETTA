@@ -1,0 +1,18 @@
+{
+  "required": true,
+  "package": "org.kodeekk.etta.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "accessor.NativeImageAccessor",
+    "accessor.SpriteContentsTickerAccessor",
+    "accessor.TextureAtlasAccessor",
+    "accessor.TextureAtlasSpriteAccessor",
+    "accessor.TextureManagerAccessor",
+    "GuiMixin",
+    "MinecraftMixin",
+    "SpriteContentsTickerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

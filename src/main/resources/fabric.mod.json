@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "etta",
+  "version": "${version}",
+  "name": "ETTA",
+  "description": "ETTA (Event Triggered Texture Animations) - A minecraft 1.21.11 fabric kotlin mod that rewrites texture engine, and makes resource-pack creators to make better animation faster. it includes state machine, event triggered animation block and much more! it works by new texture description format called \"mcmetax\"",
+  "authors": [
+    "Kodeekk"
+  ],
+  "contact": {
+    "homepage": "https://fabricmc.net/",
+    "sources": "https://github.com/FabricMC/fabric-example-mod"
+  },
+  "license": "CC0-1.0",
+  "icon": "assets/etta/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      {
+        "value": "org.kodeekk.etta.ETTA",
+        "adapter": "kotlin"
+      }
+    ]
+  },
+  "mixins": [
+    "etta.mixins.json"
+  ],
+  "accessWidener": "etta.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": "~1.21.8",
+    "java": ">=21",
+    "fabric-api": "*",
+    "fabric-language-kotlin": "*"
+  },
+  "suggests": {
+    "another-mod": "*"
+  }
+}

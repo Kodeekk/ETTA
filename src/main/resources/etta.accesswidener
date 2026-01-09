@@ -1,0 +1,11 @@
+accessWidener v2 named
+
+accessible field net/minecraft/client/renderer/texture/TextureAtlasSprite contents Lnet/minecraft/client/renderer/texture/SpriteContents;
+accessible field net/minecraft/world/entity/Entity onGround Z
+accessible field net/minecraft/client/renderer/texture/SpriteContents name Lnet/minecraft/resources/ResourceLocation;
+accessible field net/minecraft/client/renderer/texture/SpriteContents width I
+accessible field net/minecraft/client/renderer/texture/SpriteContents height I
+accessible field com/mojang/blaze3d/platform/NativeImage width I
+accessible field com/mojang/blaze3d/platform/NativeImage height I
+accessible field net/minecraft/client/renderer/texture/TextureManager byPath Ljava/util/Map;
+accessible field net/minecraft/client/renderer/texture/TextureAtlas sprites Ljava/util/List;
