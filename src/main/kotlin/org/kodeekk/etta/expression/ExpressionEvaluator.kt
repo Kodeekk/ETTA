@@ -1,443 +1,259 @@
 package org.kodeekk.etta.expression
 
+import net.minecraft.client.Minecraft
+import net.minecraft.world.level.LightLayer
+import org.kodeekk.etta.events.EventSystem
+import org.kodeekk.etta.parser.McmetaxParser
 import org.slf4j.LoggerFactory
-import kotlin.math.pow
-import kotlin.text.iterator
+import kotlin.math.abs
+import kotlin.math.min
+import kotlin.math.max
+import kotlin.random.Random
 
 /**
- * Evaluates mcmetax expression blocks using recursive descent parsing.
+ * Enhanced expression evaluator with advanced functions.
  *
- * Supports:
- * - Variables (__health, __max_health, etc.)
- * - Constants (const/mut declarations)
- * - Conditionals (if/when)
- * - Operators with proper precedence
- * - Evaluation with eval()
+ * New functions:
+ * - random() - Random value 0.0-1.0
+ * - between(val, min, max)
+ * - abs(val), min(a,b), max(a,b)
+ * - event_start(name), event_end(name)
+ * - holding_item(name)
+ * - in_biome(name)
+ * - has_effect(name)
  */
-class ExpressionEvaluator(private val expressionCode: String) {
+class ExpressionEvaluator(
+    private val expression: String,
+    private val parseContext: Any? = null
+) {
     private val logger = LoggerFactory.getLogger("ETTA-Expression")
-    private val variables = mutableMapOf<String, Any>()
 
-    /**
-     * Evaluates the expression with given context variables.
-     * Returns true/false for boolean results, or false on error.
-     */
+    // State tracking for event transitions
+    private val lastEventStates = mutableMapOf<String, Boolean>()
+    private var ticksInState = 0
+    private var lastEvalResult = false
+
     fun evaluate(contextVars: Map<String, Any>): Boolean {
         return try {
-            variables.clear()
-            variables.putAll(contextVars)
+            val result = evaluateExpression(expression, contextVars)
+            val boolResult = toBoolean(result)
 
-            logger.debug("Evaluating expression with context: $contextVars")
-            val result = evaluateBlock(expressionCode)
-
-            // Convert result to boolean
-            val boolResult = when (result) {
-                is Boolean -> result
-                is Number -> result.toDouble() != 0.0
-                null -> false
-                else -> true
+            // Track state changes
+            if (boolResult != lastEvalResult) {
+                ticksInState = 0
+                lastEvalResult = boolResult
+            } else {
+                ticksInState++
             }
 
-            logger.debug("Expression result: $boolResult (raw: $result)")
             boolResult
         } catch (e: Exception) {
-            logger.error("Expression evaluation failed: ${e.message}", e)
+            logger.error("Expression failed: ${e.message}")
             false
         }
     }
 
-    private fun evaluateBlock(code: String): Any? {
-        val trimmed = code.trim().removeSurrounding("{", "}")
-        val statements = splitStatements(trimmed)
-
-        var lastResult: Any? = null
-
-        for (statement in statements) {
-            val stmt = statement.trim()
-            if (stmt.isEmpty()) continue
-
-            lastResult = when {
-                stmt.startsWith("eval(") -> {
-                    val expr = extractFunctionArg(stmt, "eval")
-                    return evaluateExpression(expr) // Return immediately
-                }
-                stmt.startsWith("const ") -> {
-                    handleVarDeclaration(stmt.removePrefix("const "))
-                    null
-                }
-                stmt.startsWith("mut ") -> {
-                    handleVarDeclaration(stmt.removePrefix("mut "))
-                    null
-                }
-                stmt.startsWith("if ") -> handleIf(stmt)
-                stmt.startsWith("when ") -> handleWhen(stmt)
-                else -> evaluateExpression(stmt)
-            }
-        }
-
-        return lastResult ?: false
-    }
-
-    private fun splitStatements(code: String): List<String> {
-        val statements = mutableListOf<String>()
-        var current = StringBuilder()
-        var braceDepth = 0
-        var inString = false
-        var escapeNext = false
-
-        for (char in code) {
-            when {
-                escapeNext -> {
-                    current.append(char)
-                    escapeNext = false
-                }
-                char == '\\' && inString -> {
-                    current.append(char)
-                    escapeNext = true
-                }
-                char == '"' && !escapeNext -> inString = !inString
-                char == '{' && !inString -> {
-                    braceDepth++
-                    current.append(char)
-                }
-                char == '}' && !inString -> {
-                    braceDepth--
-                    current.append(char)
-                }
-                char == ';' && braceDepth == 0 && !inString -> {
-                    if (current.isNotBlank()) {
-                        statements.add(current.toString())
-                    }
-                    current = StringBuilder()
-                }
-                else -> current.append(char)
-            }
-        }
-
-        if (current.isNotBlank()) {
-            statements.add(current.toString())
-        }
-
-        return statements
-    }
-
-    private fun handleVarDeclaration(stmt: String) {
-        val parts = stmt.split("=", limit = 2)
-        if (parts.size == 2) {
-            val name = parts[0].trim()
-            val value = evaluateExpression(parts[1].trim()) ?: return
-            variables[name] = value
-        }
-    }
-
-    private fun handleIf(stmt: String): Any? {
-        // if condition { block } else { block }
-        val conditionStart = stmt.indexOf("if") + 2
-        val conditionEnd = findMatchingBrace(stmt, conditionStart)
-
-        if (conditionEnd == -1) return null
-
-        val condition = stmt.substring(conditionStart, conditionEnd).trim()
-        val rest = stmt.substring(conditionEnd)
-
-        val blocks = extractBlocks(rest)
-        if (blocks.isEmpty()) return null
-
-        val conditionResult = evaluateExpression(condition) as? Boolean ?: false
-
-        return if (conditionResult) {
-            evaluateBlock(blocks[0])
-        } else if (blocks.size > 1) {
-            evaluateBlock(blocks[1])
-        } else {
-            null
-        }
-    }
-
-    private fun handleWhen(stmt: String): Any? {
-        val parts = stmt.removePrefix("when ").split("{", limit = 2)
-        if (parts.size < 2) return null
-
-        val varName = parts[0].trim()
-        val varValue = variables[varName] ?: return null
-
-        val casesBlock = parts[1].trim().removeSuffix("}")
-        val cases = splitCases(casesBlock)
-
-        for (case in cases) {
-            if (!case.contains("=>")) continue
-
-            val (pattern, action) = case.split("=>", limit = 2)
-            val patternTrimmed = pattern.trim()
-
-            if (patternTrimmed == "rest__") {
-                return evaluateBlock(action.trim())
-            }
-
-            val matches = when (varValue) {
-                is Number -> patternTrimmed.toIntOrNull() == varValue.toInt()
-                is String -> patternTrimmed.trim('"', '\'') == varValue
-                else -> false
-            }
-
-            if (matches) {
-                return evaluateBlock(action.trim())
-            }
-        }
-
-        return null
-    }
-
-    private fun splitCases(casesBlock: String): List<String> {
-        val cases = mutableListOf<String>()
-        var current = StringBuilder()
-        var braceDepth = 0
-
-        for (char in casesBlock) {
-            when (char) {
-                '{' -> {
-                    braceDepth++
-                    current.append(char)
-                }
-                '}' -> {
-                    braceDepth--
-                    current.append(char)
-                }
-                ',' -> {
-                    if (braceDepth == 0) {
-                        cases.add(current.toString())
-                        current = StringBuilder()
-                    } else {
-                        current.append(char)
-                    }
-                }
-                else -> current.append(char)
-            }
-        }
-
-        if (current.isNotBlank()) {
-            cases.add(current.toString())
-        }
-
-        return cases
-    }
-
-    private fun findMatchingBrace(code: String, startPos: Int): Int {
-        var pos = startPos
-        while (pos < code.length && code[pos].isWhitespace()) pos++
-        if (pos >= code.length || code[pos] != '{') return pos
-
-        var depth = 0
-        while (pos < code.length) {
-            when (code[pos]) {
-                '{' -> depth++
-                '}' -> {
-                    depth--
-                    if (depth == 0) return pos
-                }
-            }
-            pos++
-        }
-        return pos
-    }
-
-    private fun extractBlocks(code: String): List<String> {
-        val blocks = mutableListOf<String>()
-        var depth = 0
-        var current = StringBuilder()
-        var started = false
-
-        for (char in code) {
-            when (char) {
-                '{' -> {
-                    if (depth == 0) started = true
-                    depth++
-                    current.append(char)
-                }
-                '}' -> {
-                    depth--
-                    current.append(char)
-                    if (depth == 0 && started) {
-                        blocks.add(current.toString())
-                        current = StringBuilder()
-                        started = false
-                    }
-                }
-                else -> if (started) current.append(char)
-            }
-        }
-
-        return blocks
-    }
-
-    private fun extractFunctionArg(stmt: String, funcName: String): String {
-        val start = stmt.indexOf("$funcName(") + funcName.length + 1
-        val end = stmt.lastIndexOf(')')
-        return if (end > start) stmt.substring(start, end) else ""
-    }
-
-    /**
-     * Evaluates a single expression with proper operator precedence.
-     * Uses recursive descent parsing.
-     */
-    private fun evaluateExpression(expr: String): Any? {
+    private fun evaluateExpression(expr: String, context: Map<String, Any>): Any {
         val trimmed = expr.trim()
 
-        // Handle constants
-        when (trimmed) {
-            "true" -> return true
-            "false" -> return false
-            "first_frame__" -> return variables["__first_frame"] ?: 0
-            "last_frame__" -> return variables["__last_frame"] ?: 0
+        // Logical OR
+        val orParts = splitByOperator(trimmed, "||")
+        if (orParts.size > 1) {
+            return orParts.any { toBoolean(evaluateExpression(it, context)) }
         }
 
-        // Handle variables
-        if (variables.containsKey(trimmed)) {
-            return variables[trimmed]
+        // Logical AND
+        val andParts = splitByOperator(trimmed, "&&")
+        if (andParts.size > 1) {
+            return andParts.all { toBoolean(evaluateExpression(it, context)) }
         }
 
-        // Handle string literals
-        if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-            return trimmed.substring(1, trimmed.length - 1)
-        }
-
-        // Handle numbers
-        trimmed.toIntOrNull()?.let { return it }
-        trimmed.toDoubleOrNull()?.let { return it }
-
-        // Parse with operator precedence: OR -> AND -> Comparison -> Arithmetic
-        return parseLogicalOr(trimmed)
-    }
-
-    // Operator precedence levels (lowest to highest):
-    // 1. Logical OR (||)
-    // 2. Logical AND (&&)
-    // 3. Comparison (==, !=, <, >, <=, >=)
-    // 4. Addition/Subtraction (+, -)
-    // 5. Multiplication/Division (*, /)
-    // 6. Power (^)
-    // 7. Unary (-, !)
-    // 8. Primary (numbers, variables, parentheses)
-
-    private fun parseLogicalOr(expr: String): Any? {
-        val parts = splitByOperator(expr, "||")
-        if (parts.size > 1) {
-            val left = parseLogicalAnd(parts[0]) as? Boolean ?: false
-            val right = parseLogicalAnd(parts.drop(1).joinToString("||")) as? Boolean ?: false
-            return left || right
-        }
-        return parseLogicalAnd(expr)
-    }
-
-    private fun parseLogicalAnd(expr: String): Any? {
-        val parts = splitByOperator(expr, "&&")
-        if (parts.size > 1) {
-            val left = parseComparison(parts[0]) as? Boolean ?: false
-            val right = parseComparison(parts.drop(1).joinToString("&&")) as? Boolean ?: false
-            return left && right
-        }
-        return parseComparison(expr)
-    }
-
-    private fun parseComparison(expr: String): Any? {
-        // Try each comparison operator
-        for (op in listOf("==", "!=", "<=", ">=", "<", ">")) {
-            val parts = splitByOperator(expr, op)
+        // Comparisons
+        for (op in listOf("<=", ">=", "==", "!=", "<", ">")) {
+            val parts = splitByOperator(trimmed, op, maxParts = 2)
             if (parts.size == 2) {
-                val left = parseAdditive(parts[0])?.toDouble() ?: continue
-                val right = parseAdditive(parts[1])?.toDouble() ?: continue
-
+                val left = toNumber(evaluateExpression(parts[0], context))
+                val right = toNumber(evaluateExpression(parts[1], context))
                 return when (op) {
-                    "==" -> left == right
-                    "!=" -> left != right
                     "<" -> left < right
                     ">" -> left > right
                     "<=" -> left <= right
                     ">=" -> left >= right
-                    else -> null
+                    "==" -> left == right
+                    "!=" -> left != right
+                    else -> false
                 }
             }
         }
-        return parseAdditive(expr)
-    }
 
-    private fun parseAdditive(expr: String): Any? {
-        for (op in listOf("+", "-")) {
-            val parts = splitByOperator(expr, op)
-            if (parts.size > 1) {
-                var result = parseMultiplicative(parts[0])?.toDouble() ?: continue
-                for (i in 1 until parts.size) {
-                    val operand = parseMultiplicative(parts[i])?.toDouble() ?: break
-                    result = if (op == "+") result + operand else result - operand
+        // Arithmetic
+        for (op in listOf("+", "-", "*", "/")) {
+            val parts = splitByOperator(trimmed, op, maxParts = 2)
+            if (parts.size == 2) {
+                val left = toNumber(evaluateExpression(parts[0], context))
+                val right = toNumber(evaluateExpression(parts[1], context))
+                return when (op) {
+                    "+" -> left + right
+                    "-" -> left - right
+                    "*" -> left * right
+                    "/" -> if (right != 0.0) left / right else 0.0
+                    else -> 0.0
                 }
-                return result
             }
         }
-        return parseMultiplicative(expr)
-    }
 
-    private fun parseMultiplicative(expr: String): Any? {
-        for (op in listOf("*", "/")) {
-            val parts = splitByOperator(expr, op)
-            if (parts.size > 1) {
-                var result = parsePower(parts[0])?.toDouble() ?: continue
-                for (i in 1 until parts.size) {
-                    val operand = parsePower(parts[i])?.toDouble() ?: break
-                    result = if (op == "*") result * operand else result / operand
-                }
-                return result
-            }
-        }
-        return parsePower(expr)
-    }
-
-    private fun parsePower(expr: String): Any? {
-        val parts = splitByOperator(expr, "^")
-        if (parts.size == 2) {
-            val base = parseUnary(parts[0])?.toDouble() ?: return null
-            val exp = parseUnary(parts[1])?.toDouble() ?: return null
-            return base.pow(exp)
-        }
-        return parseUnary(expr)
-    }
-
-    private fun parseUnary(expr: String): Any? {
-        val trimmed = expr.trim()
-
-        if (trimmed.startsWith("-")) {
-            val operand = parsePrimary(trimmed.substring(1))?.toDouble() ?: return null
-            return -operand
-        }
-
+        // Negation
         if (trimmed.startsWith("!")) {
-            val operand = parsePrimary(trimmed.substring(1)) as? Boolean ?: return null
-            return !operand
+            return !toBoolean(evaluateExpression(trimmed.substring(1), context))
         }
-
-        return parsePrimary(trimmed)
-    }
-
-    private fun parsePrimary(expr: String): Any? {
-        val trimmed = expr.trim()
 
         // Parentheses
         if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
-            return evaluateExpression(trimmed.substring(1, trimmed.length - 1))
+            return evaluateExpression(trimmed.substring(1, trimmed.length - 1), context)
         }
 
-        // Try to evaluate as base expression
-        return evaluateExpression(trimmed)
+        // Functions
+        if (trimmed.contains("(") && trimmed.endsWith(")")) {
+            return evaluateFunction(trimmed, context)
+        }
+
+        // Variables
+        return resolveVariable(trimmed, context)
     }
 
-    private fun splitByOperator(expr: String, op: String): List<String> {
-        val parts = mutableListOf<String>()
+    private fun evaluateFunction(funcCall: String, context: Map<String, Any>): Any {
+        val funcName = funcCall.substringBefore("(").trim()
+        val argsStr = funcCall.substringAfter("(").substringBeforeLast(")").trim()
+        val args = if (argsStr.isEmpty()) emptyList() else splitArguments(argsStr)
+
+        return when (funcName) {
+            // Event functions
+            "event" -> {
+                if (args.isEmpty()) return false
+                val eventName = args[0].trim()
+                EventSystem.isEventActive(eventName)
+            }
+
+            "event_start" -> {
+                if (args.isEmpty()) return false
+                val eventName = args[0].trim()
+                val currentState = EventSystem.isEventActive(eventName)
+                val lastState = lastEventStates[eventName] ?: false
+                lastEventStates[eventName] = currentState
+                currentState && !lastState // True only on transition false->true
+            }
+
+            "event_end" -> {
+                if (args.isEmpty()) return false
+                val eventName = args[0].trim()
+                val currentState = EventSystem.isEventActive(eventName)
+                val lastState = lastEventStates[eventName] ?: false
+                lastEventStates[eventName] = currentState
+                !currentState && lastState // True only on transition true->false
+            }
+
+            // Math functions
+            "random" -> {
+                Random.nextDouble()
+            }
+
+            "abs" -> {
+                if (args.isEmpty()) return 0.0
+                abs(toNumber(evaluateExpression(args[0], context)))
+            }
+
+            "min" -> {
+                if (args.size < 2) return 0.0
+                val a = toNumber(evaluateExpression(args[0], context))
+                val b = toNumber(evaluateExpression(args[1], context))
+                min(a, b)
+            }
+
+            "max" -> {
+                if (args.size < 2) return 0.0
+                val a = toNumber(evaluateExpression(args[0], context))
+                val b = toNumber(evaluateExpression(args[1], context))
+                max(a, b)
+            }
+
+            "between" -> {
+                if (args.size < 3) return false
+                val value = toNumber(evaluateExpression(args[0], context))
+                val minVal = toNumber(evaluateExpression(args[1], context))
+                val maxVal = toNumber(evaluateExpression(args[2], context))
+                value >= minVal && value <= maxVal
+            }
+
+            // State functions
+            "time_in_state" -> {
+                ticksInState
+            }
+
+            "frame_index" -> {
+                context["__current_frame"] ?: 0
+            }
+
+            "cycle_count" -> {
+                context["__cycle_count"] ?: 0
+            }
+
+            // Game state functions
+            "holding_item" -> {
+                if (args.isEmpty()) return false
+                val itemName = args[0].trim()
+                val player = Minecraft.getInstance().player ?: return false
+                val heldItem = player.mainHandItem
+                heldItem.item.toString().lowercase().contains(itemName.lowercase())
+            }
+
+            "has_effect" -> {
+                if (args.isEmpty()) return false
+                val effectName = args[0].trim()
+                val player = Minecraft.getInstance().player ?: return false
+                player.activeEffects.any {
+                    it.effect.toString().lowercase().contains(effectName.lowercase())
+                }
+            }
+
+            "in_biome" -> {
+                if (args.isEmpty()) return false
+                val biomeName = args[0].trim()
+                val player = Minecraft.getInstance().player ?: return false
+                val biome = player.level().getBiome(player.blockPosition())
+                biome.toString().lowercase().contains(biomeName.lowercase())
+            }
+
+            "armor_value" -> {
+                val player = Minecraft.getInstance().player ?: return 0
+                player.armorValue
+            }
+
+            "light_level" -> {
+                val player = Minecraft.getInstance().player ?: return 0
+                val sky_light_level = player.level().getBrightness(LightLayer.SKY, player.blockPosition())
+                val block_light_level = player.level().getBrightness(LightLayer.BLOCK, player.blockPosition())
+
+                if (sky_light_level <= 0) {
+                    block_light_level
+                } else if (block_light_level <= 0) {
+                    sky_light_level
+                }
+                else { 0 }
+            }
+
+            else -> {
+                logger.warn("Unknown function: $funcName")
+                false
+            }
+        }
+    }
+
+    private fun splitArguments(argsStr: String): List<String> {
+        val args = mutableListOf<String>()
         var current = StringBuilder()
         var parenDepth = 0
-        var i = 0
 
-        while (i < expr.length) {
-            val char = expr[i]
-
+        for (char in argsStr) {
             when {
                 char == '(' -> {
                     parenDepth++
@@ -447,26 +263,106 @@ class ExpressionEvaluator(private val expressionCode: String) {
                     parenDepth--
                     current.append(char)
                 }
-                parenDepth == 0 && expr.substring(i).startsWith(op) -> {
-                    parts.add(current.toString())
+                char == ',' && parenDepth == 0 -> {
+                    args.add(current.toString().trim())
                     current = StringBuilder()
-                    i += op.length - 1
                 }
                 else -> current.append(char)
             }
+        }
 
+        if (current.isNotEmpty()) {
+            args.add(current.toString().trim())
+        }
+
+        return args
+    }
+
+    private fun resolveVariable(name: String, context: Map<String, Any>): Any {
+        // Strip quotes if present
+        val cleanName = name.trim('"', '\'')
+
+        // Check context variables
+        when (cleanName) {
+            "health" -> return context["__health"] ?: 20.0
+            "max_health" -> return context["__max_health"] ?: 20.0
+            "hunger" -> return context["__hunger"] ?: 20
+            "first_frame" -> return context["__first_frame"] ?: 0
+            "last_frame" -> return context["__last_frame"] ?: 0
+            "true" -> return true
+            "false" -> return false
+        }
+
+        // Try parse as number
+        cleanName.toDoubleOrNull()?.let { return it }
+        cleanName.toIntOrNull()?.let { return it }
+
+        logger.warn("Unknown variable: $cleanName")
+        return 0
+    }
+
+    private fun splitByOperator(
+        expr: String,
+        op: String,
+        maxParts: Int = Int.MAX_VALUE
+    ): List<String> {
+        val parts = mutableListOf<String>()
+        var current = StringBuilder()
+        var parenDepth = 0
+        var i = 0
+
+        while (i < expr.length && parts.size < maxParts - 1) {
+            val char = expr[i]
+
+            when {
+                char == '(' -> {
+                    parenDepth++
+                    current.append(char)
+                    i++
+                }
+                char == ')' -> {
+                    parenDepth--
+                    current.append(char)
+                    i++
+                }
+                parenDepth == 0 && expr.substring(i).startsWith(op) -> {
+                    parts.add(current.toString().trim())
+                    current = StringBuilder()
+                    i += op.length
+                }
+                else -> {
+                    current.append(char)
+                    i++
+                }
+            }
+        }
+
+        while (i < expr.length) {
+            current.append(expr[i])
             i++
         }
 
-        parts.add(current.toString())
-        return parts.filter { it.isNotBlank() }
+        val last = current.toString().trim()
+        if (last.isNotEmpty()) {
+            parts.add(last)
+        }
+
+        return if (parts.isEmpty()) listOf(expr.trim()) else parts
     }
 
-    private fun Any.toDouble(): Double? {
-        return when (this) {
-            is Number -> this.toDouble()
-            is String -> this.toDoubleOrNull()
-            else -> null
+    private fun toBoolean(value: Any): Boolean {
+        return when (value) {
+            is Boolean -> value
+            is Number -> value.toDouble() != 0.0
+            else -> false
+        }
+    }
+
+    private fun toNumber(value: Any): Double {
+        return when (value) {
+            is Number -> value.toDouble()
+            is Boolean -> if (value) 1.0 else 0.0
+            else -> 0.0
         }
     }
 }
