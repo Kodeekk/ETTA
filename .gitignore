@@ -2,3 +2,5 @@
 .idea/
 .qodo/
 build/
+gradle/
+run/
