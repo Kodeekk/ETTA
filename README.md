@@ -54,19 +54,19 @@ priority: 10
    ```
    resourcepacks/my_pack/
    └── assets/
-   └── minecraft/
-   └── textures/
-   └── item/
-   ├── totem_of_undying.etta/
-   │   ├── totem_of_undying.mcmetax    # Animation definition
-   │   └── frames/
-   │       ├── 0.png                    # Frame images
-   │       ├── 1.png
-   │       └── ...
-   └── diamond_sword.etta/
-   ├── diamond_sword.mcmetax
-   └── frames/
-   └── ...
+      └── minecraft/
+         └── textures/
+            └── item/
+               ├── totem_of_undying.etta/
+               │   ├── totem_of_undying.mcmetax    # Animation definition
+               │   └── frames/
+               │       ├── 0.png                    # Frame images
+               │       ├── 1.png
+               │       └── ...
+               └── diamond_sword.etta/
+                  ├── diamond_sword.mcmetax
+                  └── frames/
+                     └── ...
    ```
 
 2. **Write the animation file** (`diamond_sword.mcmetax`):
