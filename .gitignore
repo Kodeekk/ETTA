@@ -4,5 +4,3 @@
 build/
 gradle/
 run/
-ETTA-TemplateGenerator/Cargo.lock
-ETTA-TemplateGenerator/target/
