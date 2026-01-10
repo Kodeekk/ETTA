@@ -1,269 +1,229 @@
-# Quick specs of mcmetax
+# 🎨 ETTA - Event-Triggered Texture Animation
 
-## File Structure
-```mcmetax
-[animation]           # Global settings
-[variables]          # Reusable values  
-[conditions]         # Reusable logic
-[fallback]           # Default frame
-[segment: name]      # Animation segment
-```
+> Dynamic texture animations for Minecraft that react to gameplay events
 
-## Frame Specifications
+[![Minecraft](https://img.shields.io/badge/Minecraft-1.21.8-green.svg)](https://minecraft.net)
+[![Fabric](https://img.shields.io/badge/Mod%20Loader-Fabric-orange.svg)](https://fabricmc.net)
 
-| Syntax | Result | Example |
-|--------|--------|---------|
-| `5` | Single frame | `frame: 5` |
-| `0-15` | Range | `frames: 0-15` |
-| `[0, 2, 4]` | Array | `frames: [0, 2, 4]` |
-| `0-20:2` | Step | `frames: 0-20:2` (every 2nd) |
-| `[0-5, 10-15]` | Mixed | Multiple ranges |
-| `$var` | Variable | `frames: $my_frames` |
+**ETTA** makes your Minecraft textures come alive! Items, blocks, and UI elements can change based on player health, events, time of day, weather, and much more.
 
-## Variables
+## ✨ Features
+
+- **Event-Based Animations** - Textures respond to player actions
+- **Easy to Use** - Simple text-based animation format
+- **Performance** - Efficient GPU uploads, minimal overhead
+- **Fully Compatible** - Works with vanilla `.mcmeta` files
+
+##  Quick Preview
+
+**Totem of Undying** - Pulses faster when health is low:
 
 ```mcmetax
-[variables]
-low_hp: 5
-frames_list: [0-10, 15-20]
-speed: 1
-
-[segment: test]
-frames: $frames_list
-frametime: $speed
-when: health < $low_hp
-```
-
-## Conditions
-
-```mcmetax
-[conditions]
-in_danger: health <= 5 || event(player_on_fire)
-is_moving: event(player_moving)
-
-[segment: test]
-when: $in_danger && $is_moving
-```
-
-## Multiline Properties
-
-```mcmetax
-when:
-    health < 5 &&
-    (event(player_sneaking) || event(player_swimming)) &&
-    hunger > 5
-```
-
-## Built-in Variables
-
-| Variable | Description |
-|----------|-------------|
-| `health` | Player health |
-| `max_health` | Max health |
-| `hunger` | Hunger level |
-| `first_frame` | First frame index |
-| `last_frame` | Last frame index |
-
-## Operators
-
-| Type | Operators |
-|------|-----------|
-| Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
-| Logical | `&&`, `\|\|`, `!` |
-| Arithmetic | `+`, `-`, `*`, `/` |
-| Grouping | `()` |
-
-## Functions Reference
-
-### Event Functions
-```
-event(name)              # Check if event active
-event_start(name)        # Event just activated
-event_end(name)          # Event just deactivated
-```
-
-### Math Functions
-```
-random()                 # 0.0 to 1.0
-abs(value)              # Absolute value
-min(a, b)               # Minimum
-max(a, b)               # Maximum
-between(val, min, max)  # Check range
-```
-
-### State Functions
-```
-time_in_state()         # Ticks in current state
-frame_index()           # Current frame
-cycle_count()           # Loop count
-```
-
-### Game State
-```
-holding_item(name)      # Check held item
-in_biome(name)          # Check biome
-has_effect(name)        # Check potion
-armor_value()           # Total armor
-light_level()           # Light at position
-```
-
-## Segment Types
-
-```mcmetax
-type: single            # Single frame
-type: sequence          # Frame sequence
-type: oneshot          # Play once
-type: weighted         # Random weighted
-type: conditional      # Conditional frames
-type: transition       # Triggered animation
-```
-
-## Common Patterns
-
-### Health-Based
-```mcmetax
-[segment: critical]
-type: sequence
-frames: 10-15
-when: health <= 2
-```
-
-### Event-Based
-```mcmetax
-[segment: sneaking]
-type: sequence
-frames: 5-10
-when: event(player_sneaking)
-```
-
-### Combined
-```mcmetax
-[segment: complex]
-type: sequence
-frames: 0-20
-when: health < 5 && event(player_moving)
-```
-
-### With Variables
-```mcmetax
-[variables]
-low: 5
-frames: [0-10, 15-20]
-
-[segment: test]
-type: sequence
-frames: $frames
-when: health < $low
-```
-
-### Random Effect
-```mcmetax
-[segment: sparkle]
-type: sequence
-frames: 30-35
-when: random() < 0.1
-```
-
-### Transition
-```mcmetax
-[segment: damage_flash]
-type: transition
-frames: 40-45
-when: event_start(hurt_recently)
-```
-
-### Time-Based
-```mcmetax
-[segment: idle_long]
-type: sequence
-frames: 50-60
-when: time_in_state() > 200
-```
-
-## Priority System
-
-Higher priority = takes precedence
-
-```mcmetax
-[fallback]          # -1000 (lowest)
-frame: 0
-
-[segment: normal]   # 10 (low)
-priority: 10
-
-[segment: active]   # 100 (medium)
-priority: 100
-
-[segment: critical] # 500 (high)
-priority: 500
-
-[segment: flash]    # 1000 (highest)
-priority: 1000
-```
-
-## Full Example Template
-
-```mcmetax
-# My Animation
 [animation]
 frametime: 2
-
-[variables]
-low_hp: 5
-critical_hp: 2
-
-[conditions]
-in_danger: health <= $low_hp
 
 [fallback]
 frame: 0
 
+# Critical health - fast red pulse
 [segment: critical]
 type: sequence
 frames: 10-15
 priority: 200
 frametime: 1
-when: health <= $critical_hp
+when: health <= 2
 
+# Low health - medium pulse
 [segment: low]
 type: sequence
 frames: 5-9
 priority: 100
-when: $in_danger
+when: health <= 5
 
-[segment: normal]
+# Normal - slow idle
+[segment: idle]
 type: sequence
 frames: 0-4
 priority: 10
 ```
 
-## Common Events
+## Getting Started
+### Creating Your First Animation
 
+1. **Create the folder structure:**
+   ```
+   resourcepacks/my_pack/
+   └── assets/
+   └── minecraft/
+   └── textures/
+   └── item/
+   ├── totem_of_undying.etta/
+   │   ├── totem_of_undying.mcmetax    # Animation definition
+   │   └── frames/
+   │       ├── 0.png                    # Frame images
+   │       ├── 1.png
+   │       └── ...
+   └── diamond_sword.etta/
+   ├── diamond_sword.mcmetax
+   └── frames/
+   └── ...
+   ```
+
+2. **Write the animation file** (`diamond_sword.mcmetax`):
+   ```mcmetax
+   [animation]
+   frametime: 2
+   
+   [fallback]
+   frame: 0
+   
+   [segment: glowing]
+   type: sequence
+   frames: 0-2
+   when: event(holding_item)
+   ```
+
+3. **Add your frame images** (0.png, 1.png, 2.png)
+
+4. **Enable your resource pack** in Minecraft
+
+## 📖 Documentation
+
+### Frame Specifications
+
+```mcmetax
+# Single frame
+frame: 5
+
+# Range
+frames: 0-15
+
+# Array
+frames: [0, 2, 4, 6, 8]
+
+# Step (every 2nd frame)
+frames: 0-20:2
+
+# Mixed
+frames: [0-5, 10-15, 20-25]
 ```
-player_sneaking
-player_sprinting
-player_swimming
-player_jumping
-player_falling
-player_attacking
-player_moving
-player_idle
-player_on_fire
-player_in_water
-player_in_lava
-hurt_recently
-low_health
-critical_health
-daytime
-nighttime
-raining
+
+### Variables & Conditions
+
+```mcmetax
+[variables]
+low_hp: 5
+critical_hp: 2
+
+[conditions]
+in_danger: health <= $low_hp || event(player_on_fire)
+
+[segment: danger]
+when: $in_danger
 ```
 
-## Debugging
+### Built-in Events
 
-Enable debug overlay: **F8**
+| Event | Triggers When |
+|-------|--------------|
+| `player_sneaking` | Player is sneaking |
+| `player_sprinting` | Player is sprinting |
+| `player_attacking` | Player is attacking |
+| `player_moving` | Player is moving |
+| `hurt_recently` | Player took damage |
+| `player_on_fire` | Player is on fire |
+| `player_in_water` | Player is in water |
+| `daytime` | It's day |
+| `nighttime` | It's night |
+| `raining` | It's raining |
 
-Shows:
-- Active events
-- Current frames
-- Animation sources
+[See all 40+ events →](docs/EVENTS.md)
+
+### Functions
+
+```mcmetax
+# Random effects
+when: random() < 0.1
+
+# Event transitions
+when: event_start(hurt_recently)
+
+# Math
+when: between(health, 5, 10)
+when: min(health, hunger) < 5
+
+# Game state
+when: holding_item("sword")
+when: in_biome("desert")
+when: has_effect("regeneration")
+```
+See [guide about expressions](docs/GUIDE.md)
+
+Also take a look at [examples](docs/EXAMPLES.md)
+
+##  Controls
+- **F8** - Toggle debug overlay
+
+### Dependencies
+-  Fabric API
+-  Fabric Language Kotlin
+
+##  License
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file.
+
+## 🙏 Credits
+[BasiqueEvangelist](https://github.com/BasiqueEvangelist) and his greatest invention - [ScaldingHot](https://github.com/BasiqueEvangelist/ScaldingHot) mod.
+The whole project depends on single function he wrote that makes changing item texture in runtime without resource reloading screen possible! Thank you a lot, BasiqueEvangelist
+
+##  Support
+-  **Bug Reports**: [Issues](../../issues)
+
+## 🎓 Learning Resources
+
+- [ Complete Guide](docs/GUIDE.md) - In-depth tutorial
+- [ Expression Reference](docs/EXPRESSIONS.md) - All functions & operators
+- [ Example Pack](docs/EXAMPLES.md) - Download ready-to-use examples
+
+## 🌟 Showcase
+
+Show us what you've created! Tag `#ETTAAnimations` on social media.
+
+[//]: # (### Community Creations)
+
+[//]: # ()
+[//]: # (- **Reactive Health Bars** by @user1)
+
+[//]: # (- **Weather-Aware Compass** by @user2)
+
+[//]: # (- **Combat Effects Pack** by @user3)
+
+[See more →](SHOWCASE.md)
+
+##  Todo List:
+
+- [x] Basic event system
+- [x] Expression evaluator
+- [x] Hot reload
+- [x] Advanced functions
+- [ ] Visual editor (GUI)
+- [ ] More built-in events
+- [ ] Animation templates
+- [ ] Resource pack generator
+
+##  Known Issues
+
+- Hot reload may not work with zipped resource packs
+- Some texture atlas configurations not supported
+- Debug overlay has minor rendering issues
+
+See [Issues](../../issues) for full list.
+
+<div align="center">
+
+**Made with ❤️ for the Minecraft community**
+
+⭐ **Star this repo if you find it useful!** ⭐
+
+[Report Bug](../../issues) · [Request Feature](../../issues) · [Discuss](../../discussions)
+
+</div>
