@@ -11,7 +11,7 @@
 
 - **Event-Based Animations** - Textures respond to player actions
 - **Easy to Use** - Simple text-based animation format
-- **Performance** - Efficient GPU uploads, minimal overhead
+- **Performance** - Efficient texture uploads, minimal overhead
 - **Fully Compatible** - Works with vanilla `.mcmeta` files
 
 ##  Quick Preview
@@ -182,7 +182,6 @@ The whole project depends on single function he wrote that makes changing item t
 
 - [ Complete Guide](docs/GUIDE.md) - In-depth tutorial
 - [ Expression Reference](docs/EXPRESSIONS.md) - All functions & operators
-- [ Example Pack](docs/EXAMPLES.md) - Download ready-to-use examples
 
 ## 🌟 Showcase
 
@@ -205,10 +204,11 @@ Show us what you've created! Tag `#ETTAAnimations` on social media.
 - [x] Expression evaluator
 - [x] Hot reload
 - [x] Advanced functions
-- [ ] Visual editor (GUI)
+- [ ] Visual editor (GUI) - work in progress!
 - [ ] More built-in events
 - [ ] Animation templates
-- [ ] Resource pack generator
+- [ ] Resource pack generator - will be included with visual editor!
+- [ ] Better docs
 
 ##  Known Issues
 
