@@ -6,10 +6,7 @@ import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.network.chat.Component
 import org.kodeekk.etta.animation.AnimationController
 import org.kodeekk.etta.events.EventSystem
-/**
- * Debug overlay showing active events and animated textures.
- * Toggle with F8 key.
- */
+
 object DebugOverlay {
     var enabled = false
     private var lastEventState = mutableSetOf<String>()
@@ -31,10 +28,9 @@ object DebugOverlay {
         var y = 10
         val x = 10
         val lineHeight = 12
-        val backgroundColor = 0x40000000.toInt() // Semi-transparent black
+        val backgroundColor = 0x40000000.toInt()
         val padding = 2
 
-        // Helper function to render text with background
         fun renderLine(text: String, color: Int = 0xFFFFFFFF.toInt()) {
             val text = Component.literal(text)
             val width = Minecraft.getInstance().window.guiScaledWidth
@@ -45,11 +41,9 @@ object DebugOverlay {
             y += lineHeight
         }
 
-        // Title
         renderLine("ETTA Debug", 0xFFFFD700.toInt())
         y += 3
 
-        // Active Events Section
         val activeEvents = EventSystem.getActiveEvents()
         renderLine("Active Events: ${activeEvents.size}", 0xFFFFA500.toInt())
 
@@ -68,7 +62,6 @@ object DebugOverlay {
 
         y += 3
 
-        // Animated Textures Section
         val animatedTextures = AnimationController.getAllAnimatedTextures()
         renderLine("Animated Textures: ${animatedTextures.size}", 0xFFFFA500.toInt())
 
@@ -87,7 +80,6 @@ object DebugOverlay {
             }
         }
 
-        // Update last state
         lastEventState = activeEvents.toMutableSet()
     }
 }

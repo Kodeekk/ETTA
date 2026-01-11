@@ -9,24 +9,13 @@ import org.kodeekk.etta.texture.SpriteUploader
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Central controller for managing texture animations.
- * Handles both MCMETA (vanilla) and MCMETAX (event-based) animations.
- * Automatically uploads frames to GPU when they change.
- */
 object AnimationController {
     private val logger = LoggerFactory.getLogger("ETTA-Controller")
 
     private val animations = ConcurrentHashMap<ResourceLocation, AnimationMetadata>()
     private val states = ConcurrentHashMap<ResourceLocation, List<SegmentState>>()
-
-    // Track last uploaded frame to avoid redundant GPU uploads
     private val lastUploadedFrame = ConcurrentHashMap<ResourceLocation, Int>()
-
-    // Track failed uploads to avoid spam
     private val failedUploads = ConcurrentHashMap<ResourceLocation, Int>()
-
-    // Track if we've logged debug info for a texture
     private val debugLogged = ConcurrentHashMap<ResourceLocation, Boolean>()
 
     fun registerAnimation(metadata: AnimationMetadata) {
@@ -99,31 +88,24 @@ object AnimationController {
                 AnimationSource.MCMETAX -> tickMcmetaxAnimation(textureId, segmentStates, metadata, contextVars)
             }
 
-            // Upload frame to GPU if it changed (only for MCMETAX with loaded frames)
             if (metadata.source == AnimationSource.MCMETAX && SpriteManager.hasFrames(textureId)) {
                 uploadFrameIfChanged(textureId)
             }
         }
     }
 
-    /**
-     * Uploads a frame to GPU if it has changed, with error handling.
-     */
     private fun uploadFrameIfChanged(textureId: ResourceLocation) {
         try {
             val currentFrame = getCurrentFrame(textureId)
             val lastFrame = lastUploadedFrame[textureId]
 
-            // Skip if frame hasn't changed
             if (lastFrame != null && lastFrame == currentFrame) {
                 return
             }
 
             val failCount = failedUploads.getOrDefault(textureId, 0)
 
-            // Stop trying after 10 failures
             if (failCount >= 10) {
-                // Log once when we give up
                 if (!debugLogged.containsKey(textureId)) {
                     logger.warn("Gave up uploading frames for $textureId after 10 failures (texture may not be in atlas)")
                     debugLogged[textureId] = true
@@ -131,14 +113,12 @@ object AnimationController {
                 return
             }
 
-            // Try to upload
             val success = SpriteUploader.uploadFrameFromMemory(textureId, currentFrame)
 
             if (success) {
                 lastUploadedFrame[textureId] = currentFrame
-                failedUploads.remove(textureId) // Reset fail count on success
+                failedUploads.remove(textureId)
 
-                // Log first successful upload
                 if (!debugLogged.containsKey(textureId)) {
                     logger.info("Successfully started GPU uploads for $textureId")
                     debugLogged[textureId] = true
@@ -147,17 +127,15 @@ object AnimationController {
                 val newFailCount = failCount + 1
                 failedUploads[textureId] = newFailCount
 
-                // Log every 5th failure
                 if (newFailCount % 5 == 0) {
                     logger.debug("Failed to upload frame for $textureId ($newFailCount times)")
                 }
             }
         } catch (e: Exception) {
-            // Catch any unexpected errors to prevent crashes
             val failCount = failedUploads.getOrDefault(textureId, 0) + 1
             failedUploads[textureId] = failCount
 
-            if (failCount <= 2) { // Only log first 2 exceptions
+            if (failCount <= 2) {
                 logger.error("Exception during frame upload for $textureId", e)
             }
         }

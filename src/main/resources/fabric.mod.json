@@ -8,10 +8,10 @@
     "Kodeekk"
   ],
   "contact": {
-    "homepage": "https://fabricmc.net/",
-    "sources": "https://github.com/FabricMC/fabric-example-mod"
+    "homepage": "https://modrinth.com/mod/etta",
+    "sources": "https://github.com/Kodeekk/ETTA"
   },
-  "license": "CC0-1.0",
+  "license": "github repo contains custom license, please, check it out!",
   "icon": "assets/etta/icon.png",
   "environment": "client",
   "entrypoints": {
@@ -32,8 +32,5 @@
     "java": ">=21",
     "fabric-api": "*",
     "fabric-language-kotlin": "*"
-  },
-  "suggests": {
-    "another-mod": "*"
   }
 }

@@ -14,7 +14,6 @@ abstract class SpriteContentsTickerMixin {
     private val logger = LoggerFactory.getLogger("ETTA-SpriteTickerMixin")
     private var ettaTextureId: net.minecraft.resources.ResourceLocation? = null
 
-    // Use raw type for frames to avoid referencing private AnimationFrame class
     @Inject(
         method = ["<init>"],
         at = [At("TAIL")]

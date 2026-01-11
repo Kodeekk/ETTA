@@ -6,10 +6,6 @@ import java.nio.file.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.thread
 
-/**
- * Watches resource pack directories for file changes.
- * Based on ScaldingHot's file watching system but self-contained in ETTA.
- */
 object FileWatcher {
     private val logger = LoggerFactory.getLogger("ETTA-FileWatcher")
 
@@ -17,7 +13,6 @@ object FileWatcher {
     private val watchedPaths = ConcurrentHashMap<Path, WatchKey>()
     private val pathToResourcePack = ConcurrentHashMap<Path, String>()
 
-    // Debouncing
     private val pendingChanges = ConcurrentHashMap<Path, ChangeType>()
     private var debounceTimer: Thread? = null
     private val debounceDelayMs = 500L
@@ -29,9 +24,6 @@ object FileWatcher {
         CREATED, MODIFIED, DELETED
     }
 
-    /**
-     * Starts watching resource pack directories.
-     */
     fun start() {
         if (running) {
             logger.warn("FileWatcher already running")
@@ -58,9 +50,6 @@ object FileWatcher {
         }
     }
 
-    /**
-     * Stops the file watcher.
-     */
     fun stop() {
         running = false
         watchThread?.interrupt()
@@ -78,12 +67,6 @@ object FileWatcher {
         pathToResourcePack.clear()
     }
 
-    /**
-     * Registers a resource pack directory for watching.
-     *
-     * @param packPath The root path of the resource pack
-     * @param packName The name of the resource pack (for logging)
-     */
     fun watchResourcePack(packPath: Path, packName: String) {
         if (!Files.exists(packPath)) {
             logger.warn("Resource pack path does not exist: $packPath")
@@ -99,10 +82,8 @@ object FileWatcher {
             val watchService = FileSystems.getDefault().newWatchService()
             watchServices.add(watchService)
 
-            // Register the root directory
             registerDirectory(packPath, watchService, packName)
 
-            // Recursively register subdirectories
             Files.walk(packPath).forEach { path ->
                 if (Files.isDirectory(path)) {
                     registerDirectory(path, watchService, packName)
@@ -158,7 +139,6 @@ object FileWatcher {
                     else -> continue
                 }
 
-                // Only watch ETTA-related files
                 if (isEttaFile(changedPath)) {
                     logger.debug("Detected $changeType: $changedPath")
                     pendingChanges[changedPath] = changeType
@@ -179,16 +159,13 @@ object FileWatcher {
     }
 
     private fun scheduleDebounce() {
-        // Cancel existing timer
         debounceTimer?.interrupt()
 
-        // Start new timer
         debounceTimer = thread(name = "ETTA-Debounce", isDaemon = true) {
             try {
                 Thread.sleep(debounceDelayMs)
                 processPendingChanges()
             } catch (e: InterruptedException) {
-                // Timer cancelled
             }
         }
     }
@@ -201,7 +178,6 @@ object FileWatcher {
 
         logger.info("Processing ${changes.size} file changes")
 
-        // Notify hot reload handler
         HotReloadHandler.handleChanges(changes)
     }
 }

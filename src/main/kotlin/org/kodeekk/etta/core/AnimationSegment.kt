@@ -8,7 +8,6 @@ sealed class AnimationSegment {
     abstract val priority: Int
     abstract val frametime: Int?
 
-    // Fallback frame - single frame, lowest priority
     data class FallbackSegment(
         override val name: String = "fallback",
         val frameIndex: Int,
@@ -16,7 +15,6 @@ sealed class AnimationSegment {
         override val frametime: Int? = null
     ) : AnimationSegment()
 
-    // Single frame segment with event trigger
     data class SingleFrameSegment(
         override val name: String,
         val frameIndex: Int,
@@ -26,7 +24,6 @@ sealed class AnimationSegment {
         override val frametime: Int? = null
     ) : AnimationSegment()
 
-    // Sequence - multiple frames with loop control
     data class SequenceSegment(
         override val name: String,
         val firstFrameIndex: Int,
@@ -39,7 +36,6 @@ sealed class AnimationSegment {
         override val frametime: Int? = null
     ) : AnimationSegment()
 
-    // One-shot - plays once then stops (deprecated, use SEQUENCE with loop=false)
     data class OneShotSegment(
         override val name: String,
         val firstFrameIndex: Int,
@@ -50,10 +46,9 @@ sealed class AnimationSegment {
         override val frametime: Int? = null
     ) : AnimationSegment()
 
-    // Helper to check if segment should be active
     fun shouldBeActive(variables: Map<String, Any>): Boolean {
         return when (this) {
-            is FallbackSegment -> true // Always available as fallback
+            is FallbackSegment -> true
             is SingleFrameSegment -> {
                 expression?.evaluate(variables) ?: (eventName == null)
             }
@@ -66,7 +61,6 @@ sealed class AnimationSegment {
         }
     }
 
-    // Get frame range
     fun getFrameRange(): IntRange {
         return when (this) {
             is FallbackSegment -> frameIndex..frameIndex

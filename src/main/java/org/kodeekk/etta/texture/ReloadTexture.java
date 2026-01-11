@@ -20,12 +20,10 @@ import java.nio.file.Path;
 import java.util.Set;
 
 public class ReloadTexture {
-    // Overload for single texture reload
     public void onHotReload(String texturePath, ResourceLocation textureToReload) {
         onHotReload(texturePath, Set.of(textureToReload));
     }
 
-    // Overload for multiple textures reload
     public void onHotReload(String texturePath, Set<ResourceLocation> texturesToReload) {
         var client = Minecraft.getInstance();
         var textures = client.getTextureManager();
@@ -37,14 +35,12 @@ public class ReloadTexture {
             for (var spriteEntry : ((TextureAtlasAccessor) atlas).getTexturesByName().entrySet()) {
                 ResourceLocation spriteName = spriteEntry.getKey();
 
-                // If texturesToReload is empty, reload all textures (original behavior)
-                // Otherwise, only reload specified textures
                 if (!texturesToReload.isEmpty() && !texturesToReload.contains(spriteName)) {
                     continue;
                 }
 
                 var contents = spriteEntry.getValue().contents();
-                var originalId = ((SpriteContentsAccess) contents).scaldinghot$originalId();
+                var originalId = ((SpriteContentsAccess) contents).etta$originalId();
                 if (originalId == null) continue;
 
                 SpriteContents newSprite = null;
@@ -72,7 +68,7 @@ public class ReloadTexture {
                     if (newSprite == null) continue;
                     if (newSprite.height() != contents.height() || newSprite.width() != contents.height()) continue;
 
-                    newSprite.increaseMipLevel(((SpriteContentsAccess) contents).scaldinghot$getMipLevel());
+                    newSprite.increaseMipLevel(((SpriteContentsAccess) contents).etta$getMipLevel());
 
                     ((TextureAtlasSpriteAccessor) spriteEntry.getValue()).setContents(newSprite);
 
@@ -86,12 +82,10 @@ public class ReloadTexture {
         }
     }
 
-    // Original method signature for backward compatibility
     public void onHotReload(String texturePath) {
         onHotReload(texturePath, Set.of());
     }
 
-    // Alternative: Specific atlas targeting
     public void onHotReload(ResourceLocation atlasLocation, ResourceLocation spriteToReload, String texturePath) {
         var client = Minecraft.getInstance();
         var textures = client.getTextureManager();
@@ -115,7 +109,7 @@ public class ReloadTexture {
                                     TextureAtlasSprite sprite, String texturePath) {
         var opener = SpriteResourceLoader.create(SpriteLoader.DEFAULT_METADATA_SECTIONS);
         var contents = sprite.contents();
-        var originalId = ((SpriteContentsAccess) contents).scaldinghot$originalId();
+        var originalId = ((SpriteContentsAccess) contents).etta$originalId();
 
         if (originalId == null) {
             ETTA.getLOGGER().error("Original ID not found for sprite: {}", spriteName);
@@ -154,7 +148,7 @@ public class ReloadTexture {
                 return;
             }
 
-            newSprite.increaseMipLevel(((SpriteContentsAccess) contents).scaldinghot$getMipLevel());
+            newSprite.increaseMipLevel(((SpriteContentsAccess) contents).etta$getMipLevel());
             ((TextureAtlasSpriteAccessor) sprite).setContents(newSprite);
             sprite.uploadFirstFrame(atlas.getTexture());
 

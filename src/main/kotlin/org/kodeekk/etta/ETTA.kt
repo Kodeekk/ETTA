@@ -18,16 +18,6 @@ import org.lwjgl.glfw.GLFW
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-/**
- * ETTA - Event-Triggered Texture Animation System
- *
- * Features:
- * - Event-based animation triggers
- * - Expression-based conditional animations
- * - Priority-based segment switching
- * - Full compatibility with vanilla .mcmeta files
- * - Self-contained hot reload system (no external dependencies)
- */
 object ETTA : ClientModInitializer {
     private var instance: ETTA = this
     public var logger: Logger = LoggerFactory.getLogger("ETTA")
@@ -44,7 +34,6 @@ object ETTA : ClientModInitializer {
     override fun onInitializeClient() {
         logger.info("Initializing ETTA - Event-Triggered Texture Animation System")
 
-        // Register debug overlay keybinding
         debugToggleKey = KeyBindingHelper.registerKeyBinding(
             KeyMapping(
                 "key.etta.toggle_debug",
@@ -54,18 +43,14 @@ object ETTA : ClientModInitializer {
             )
         )
 
-        // Register client tick callback for keybinding
         ClientTickEvents.END_CLIENT_TICK.register { client ->
             while (debugToggleKey.consumeClick()) {
                 DebugOverlay.toggle()
             }
         }
 
-        // CRITICAL: Register resource reload listener
-        // This ensures animations are loaded on startup AND when F3+T is pressed
         registerResourceReloadListener()
 
-        // Initialize hot reload system
         initializeHotReload()
 
         logger.info("ETTA initialized successfully")
@@ -73,10 +58,6 @@ object ETTA : ClientModInitializer {
         logger.info("Press F8 to toggle debug overlay")
     }
 
-    /**
-     * Registers the resource reload listener for loading animations.
-     * This is CRITICAL - without this, animations never load!
-     */
     private fun registerResourceReloadListener() {
         try {
             ResourceManagerHelper.get(PackType.CLIENT_RESOURCES).registerReloadListener(
@@ -88,7 +69,6 @@ object ETTA : ClientModInitializer {
                     override fun onResourceManagerReload(resourceManager: ResourceManager) {
                         logger.info("=== ETTA Resource Reload Triggered ===")
 
-                        // Load all animations from resource packs
                         ResourceLoader.loadAnimations(resourceManager)
 
                         resourcesLoaded = true
@@ -102,21 +82,14 @@ object ETTA : ClientModInitializer {
             logger.error("Failed to register resource reload listener", e)
         }
     }
-
-    /**
-     * Initializes the hot reload system.
-     */
     private fun initializeHotReload() {
         try {
-            // Start file watcher
             FileWatcher.start()
 
-            // Scan and watch resource packs after resources are loaded
             ClientTickEvents.END_CLIENT_TICK.register { client ->
                 if (client.resourceManager != null && resourcesLoaded && !hotReloadEnabled) {
                     hotReloadEnabled = true
 
-                    // Scan resource packs on next tick
                     client.execute {
                         try {
                             ResourcePackScanner.scanAndWatch()
@@ -132,13 +105,5 @@ object ETTA : ClientModInitializer {
         } catch (e: Exception) {
             logger.error("Failed to initialize hot reload system", e)
         }
-    }
-
-    /**
-     * Called on mod shutdown.
-     */
-    fun shutdown() {
-        FileWatcher.stop()
-        logger.info("ETTA shutdown complete")
     }
 }

@@ -16,14 +16,12 @@ object McmetaParser {
             val frametime = animation.get("frametime")?.asInt ?: 1
             val interpolate = animation.get("interpolate")?.asBoolean ?: false
 
-            // Get frame count from frames array or default to full texture
             val frames = if (animation.has("frames")) {
                 animation.getAsJsonArray("frames")
             } else null
 
             val frameCount = frames?.size() ?: 0
 
-            // Create a single sequence segment for the entire animation
             val segment = AnimationSegment.SequenceSegment(
                 name = "default",
                 firstFrameIndex = 0,

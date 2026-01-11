@@ -9,15 +9,9 @@ import org.slf4j.LoggerFactory
 import java.nio.file.Path
 import kotlin.jvm.java
 
-/**
- * Scans active resource packs and registers them for file watching.
- */
 object ResourcePackScanner {
     private val logger = LoggerFactory.getLogger("ETTA-ResourcePackScanner")
 
-    /**
-     * Scans all active resource packs and registers them with FileWatcher.
-     */
     fun scanAndWatch() {
         val client = Minecraft.getInstance()
         val resourceManager = client.resourceManager
@@ -26,7 +20,6 @@ object ResourcePackScanner {
 
         var watchedCount = 0
 
-        // Get all resource packs
         try {
             val packs = resourceManager.listPacks()
 
@@ -35,10 +28,8 @@ object ResourcePackScanner {
                     val packPath = extractPackPath(pack) ?: continue
                     val packName = pack.location().title.toString()
 
-                    // Register with FileWatcher
                     FileWatcher.watchResourcePack(packPath, packName)
 
-                    // Register path mapping for hot reload
                     HotReloadHandler.registerResourcePack(packPath, extractNamespace(pack))
 
                     watchedCount++
@@ -54,15 +45,10 @@ object ResourcePackScanner {
         logger.info("Watching $watchedCount resource packs for hot reload")
     }
 
-    /**
-     * Extracts the file system path from a resource pack.
-     */
     private fun extractPackPath(pack: PackResources): Path? {
         return when (pack) {
             is PathPackResources -> {
-                // Development resource pack (folder)
                 try {
-                    // Access private field via reflection
                     val field = PathPackResources::class.java.getDeclaredField("root")
                     field.isAccessible = true
                     field.get(pack) as? Path
@@ -72,7 +58,6 @@ object ResourcePackScanner {
                 }
             }
             is FilePackResources -> {
-                // Zipped resource pack
                 try {
                     val field = FilePackResources::class.java.getDeclaredField("file")
                     field.isAccessible = true
@@ -83,20 +68,14 @@ object ResourcePackScanner {
                 }
             }
             else -> {
-                // Built-in resources or other types - skip
                 logger.debug("Unknown/unsupported pack type: ${pack::class.java.simpleName}")
                 null
             }
         }
     }
 
-    /**
-     * Extracts the namespace from a resource pack.
-     * Defaults to "minecraft" if unable to determine.
-     */
     private fun extractNamespace(pack: PackResources): String {
         return try {
-            // Try to get namespaces from the pack
             val namespaces = pack.getNamespaces(PackType.CLIENT_RESOURCES)
             namespaces.firstOrNull() ?: "minecraft"
         } catch (e: Exception) {

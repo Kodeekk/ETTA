@@ -4,15 +4,9 @@ import org.kodeekk.etta.core.AnimationSegment
 import org.kodeekk.etta.expression.ExpressionEvaluator
 import org.slf4j.LoggerFactory
 
-/**
- * Parses animation segments from mcmetax content.
- */
 object SegmentParser {
     private val logger = LoggerFactory.getLogger("ETTA-SegmentParser")
 
-    /**
-     * Parses all segments from a segments block.
-     */
     fun parseSegments(content: String): List<AnimationSegment> {
         val segments = mutableListOf<AnimationSegment>()
         var counter = 0
@@ -46,13 +40,9 @@ object SegmentParser {
         return segments
     }
 
-    /**
-     * Parses a single segment starting at the given position.
-     */
     private fun parseSegmentAt(content: String, startPos: Int, nameIndex: Int): Pair<AnimationSegment?, Int> {
-        var pos = startPos + 8 // Skip "segment!"
+        var pos = startPos + 8
 
-        // Parse segment type
         val typeEnd = findNextSpecialChar(content, pos, setOf('@', '{', ' ', '\n', '\r', '\t'))
         val segmentTypeStr = content.substring(pos, typeEnd).trim()
         logger.debug("Parsing segment type: '$segmentTypeStr'")
@@ -65,54 +55,45 @@ object SegmentParser {
 
         pos = typeEnd
 
-        // Skip whitespace
         while (pos < content.length && content[pos].isWhitespace()) pos++
 
-        // Parse corrector (@event or @expression)
         var correctorType: String? = null
         var correctorArg: String? = null
 
         if (pos < content.length && content[pos] == '@') {
-            pos++ // Skip '@'
+            pos++
 
             val correctorTypeEnd = content.indexOf('(', pos)
             if (correctorTypeEnd != -1) {
                 correctorType = content.substring(pos, correctorTypeEnd).trim()
                 logger.debug("Found corrector type: $correctorType")
-                pos = correctorTypeEnd + 1 // Skip '('
+                pos = correctorTypeEnd + 1
 
-                // Extract corrector argument
                 val (arg, argEnd) = extractBalancedParens(content, pos)
                 correctorArg = arg
                 logger.debug("Corrector argument length: ${arg.length}")
                 pos = argEnd
 
-                // Skip closing paren
                 if (pos < content.length && content[pos] == ')') pos++
             }
         }
 
-        // Skip whitespace
         while (pos < content.length && content[pos].isWhitespace()) pos++
 
-        // Parse properties block
         if (pos >= content.length || content[pos] != '{') {
             logger.warn("Expected '{' for properties block at position $pos")
             return null to pos
         }
 
-        pos++ // Skip opening '{'
+        pos++
         val (propertiesBlock, propertiesEnd) = extractBalancedBraces(content, pos)
         pos = propertiesEnd
 
-        // Skip closing '}'
         if (pos < content.length && content[pos] == '}') pos++
 
-        // Parse properties
         val properties = parseProperties(propertiesBlock)
         logger.debug("Parsed properties: $properties")
 
-        // Create segment
         val segment = createSegment(
             segmentType = segmentType,
             properties = properties,
@@ -124,9 +105,6 @@ object SegmentParser {
         return segment to pos
     }
 
-    /**
-     * Creates an AnimationSegment from parsed data.
-     */
     private fun createSegment(
         segmentType: SegmentType,
         properties: Map<String, String>,
@@ -138,7 +116,6 @@ object SegmentParser {
         val priority = properties["priority"]?.toIntOrNull() ?: 10
         val frametime = properties["frametime"]?.toIntOrNull()
 
-        // Parse corrector
         val eventName: String? = if (correctorType == "event") {
             correctorArg?.trim('"', '\'', ' ')
         } else null
@@ -206,23 +183,14 @@ object SegmentParser {
         }
     }
 
-    /**
-     * Extracts content between balanced braces.
-     */
     private fun extractBalancedBraces(content: String, startPos: Int): Pair<String, Int> {
         return extractBalanced(content, startPos, '{', '}')
     }
 
-    /**
-     * Extracts content between balanced parentheses.
-     */
     private fun extractBalancedParens(content: String, startPos: Int): Pair<String, Int> {
         return extractBalanced(content, startPos, '(', ')')
     }
 
-    /**
-     * Generic balanced delimiter extraction.
-     */
     private fun extractBalanced(content: String, startPos: Int, open: Char, close: Char): Pair<String, Int> {
         val builder = StringBuilder()
         var depth = 1
@@ -265,9 +233,6 @@ object SegmentParser {
         return Pair(builder.toString(), pos)
     }
 
-    /**
-     * Finds the next occurrence of any special character.
-     */
     private fun findNextSpecialChar(content: String, startPos: Int, chars: Set<Char>): Int {
         var pos = startPos
         while (pos < content.length && content[pos] !in chars) {
@@ -276,13 +241,9 @@ object SegmentParser {
         return pos
     }
 
-    /**
-     * Parses properties from a properties block.
-     */
     private fun parseProperties(block: String): Map<String, String> {
         val properties = mutableMapOf<String, String>()
 
-        // Split by semicolons or commas
         val lines = block.split(Regex("[;,]"))
 
         for (line in lines) {

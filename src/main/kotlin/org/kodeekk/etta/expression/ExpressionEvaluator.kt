@@ -10,25 +10,13 @@ import kotlin.math.min
 import kotlin.math.max
 import kotlin.random.Random
 
-/**
- * Enhanced expression evaluator with advanced functions.
- *
- * New functions:
- * - random() - Random value 0.0-1.0
- * - between(val, min, max)
- * - abs(val), min(a,b), max(a,b)
- * - event_start(name), event_end(name)
- * - holding_item(name)
- * - in_biome(name)
- * - has_effect(name)
- */
+
 class ExpressionEvaluator(
     private val expression: String,
     private val parseContext: Any? = null
 ) {
     private val logger = LoggerFactory.getLogger("ETTA-Expression")
 
-    // State tracking for event transitions
     private val lastEventStates = mutableMapOf<String, Boolean>()
     private var ticksInState = 0
     private var lastEvalResult = false
@@ -38,7 +26,6 @@ class ExpressionEvaluator(
             val result = evaluateExpression(expression, contextVars)
             val boolResult = toBoolean(result)
 
-            // Track state changes
             if (boolResult != lastEvalResult) {
                 ticksInState = 0
                 lastEvalResult = boolResult
@@ -56,19 +43,16 @@ class ExpressionEvaluator(
     private fun evaluateExpression(expr: String, context: Map<String, Any>): Any {
         val trimmed = expr.trim()
 
-        // Logical OR
         val orParts = splitByOperator(trimmed, "||")
         if (orParts.size > 1) {
             return orParts.any { toBoolean(evaluateExpression(it, context)) }
         }
 
-        // Logical AND
         val andParts = splitByOperator(trimmed, "&&")
         if (andParts.size > 1) {
             return andParts.all { toBoolean(evaluateExpression(it, context)) }
         }
 
-        // Comparisons
         for (op in listOf("<=", ">=", "==", "!=", "<", ">")) {
             val parts = splitByOperator(trimmed, op, maxParts = 2)
             if (parts.size == 2) {
@@ -86,7 +70,6 @@ class ExpressionEvaluator(
             }
         }
 
-        // Arithmetic
         for (op in listOf("+", "-", "*", "/")) {
             val parts = splitByOperator(trimmed, op, maxParts = 2)
             if (parts.size == 2) {
@@ -102,22 +85,18 @@ class ExpressionEvaluator(
             }
         }
 
-        // Negation
         if (trimmed.startsWith("!")) {
             return !toBoolean(evaluateExpression(trimmed.substring(1), context))
         }
 
-        // Parentheses
         if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
             return evaluateExpression(trimmed.substring(1, trimmed.length - 1), context)
         }
 
-        // Functions
         if (trimmed.contains("(") && trimmed.endsWith(")")) {
             return evaluateFunction(trimmed, context)
         }
 
-        // Variables
         return resolveVariable(trimmed, context)
     }
 
@@ -127,7 +106,6 @@ class ExpressionEvaluator(
         val args = if (argsStr.isEmpty()) emptyList() else splitArguments(argsStr)
 
         return when (funcName) {
-            // Event functions
             "event" -> {
                 if (args.isEmpty()) return false
                 val eventName = args[0].trim()
@@ -140,7 +118,7 @@ class ExpressionEvaluator(
                 val currentState = EventSystem.isEventActive(eventName)
                 val lastState = lastEventStates[eventName] ?: false
                 lastEventStates[eventName] = currentState
-                currentState && !lastState // True only on transition false->true
+                currentState && !lastState
             }
 
             "event_end" -> {
@@ -149,10 +127,9 @@ class ExpressionEvaluator(
                 val currentState = EventSystem.isEventActive(eventName)
                 val lastState = lastEventStates[eventName] ?: false
                 lastEventStates[eventName] = currentState
-                !currentState && lastState // True only on transition true->false
+                !currentState && lastState
             }
 
-            // Math functions
             "random" -> {
                 Random.nextDouble()
             }
@@ -184,7 +161,6 @@ class ExpressionEvaluator(
                 value >= minVal && value <= maxVal
             }
 
-            // State functions
             "time_in_state" -> {
                 ticksInState
             }
@@ -197,7 +173,6 @@ class ExpressionEvaluator(
                 context["__cycle_count"] ?: 0
             }
 
-            // Game state functions
             "holding_item" -> {
                 if (args.isEmpty()) return false
                 val itemName = args[0].trim()
@@ -279,10 +254,8 @@ class ExpressionEvaluator(
     }
 
     private fun resolveVariable(name: String, context: Map<String, Any>): Any {
-        // Strip quotes if present
         val cleanName = name.trim('"', '\'')
 
-        // Check context variables
         when (cleanName) {
             "health" -> return context["__health"] ?: 20.0
             "max_health" -> return context["__max_health"] ?: 20.0
@@ -293,7 +266,6 @@ class ExpressionEvaluator(
             "false" -> return false
         }
 
-        // Try parse as number
         cleanName.toDoubleOrNull()?.let { return it }
         cleanName.toIntOrNull()?.let { return it }
 

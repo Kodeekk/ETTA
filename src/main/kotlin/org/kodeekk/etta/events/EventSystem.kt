@@ -39,7 +39,6 @@ object EventSystem {
             }
         }
 
-        // Log event changes for debugging
         val activated = activeEvents - previousActiveEvents
         val deactivated = previousActiveEvents - activeEvents
 
@@ -54,7 +53,6 @@ object EventSystem {
     fun getActiveEvents(): Set<String> = activeEvents.toSet()
 
     private fun registerBuiltInEvents() {
-        // Player movement states
         registerEvent("player_sneaking") {
             Minecraft.getInstance().player?.isCrouching == true
         }
@@ -77,9 +75,7 @@ object EventSystem {
         registerEvent("player_flying") {
             Minecraft.getInstance().player?.abilities?.flying == true
         }
-        // REMOVED: player_gliding (isFallFlying not available in all versions)
 
-        // Environmental states
         registerEvent("player_in_water") {
             Minecraft.getInstance().player?.isInWater == true
         }
@@ -93,7 +89,6 @@ object EventSystem {
             Minecraft.getInstance().player?.isUnderWater == true
         }
 
-        // Time/weather
         registerEvent("daytime") {
             Minecraft.getInstance().level?.isBrightOutside == true
         }
@@ -107,7 +102,6 @@ object EventSystem {
             Minecraft.getInstance().level?.isThundering == true
         }
 
-        // Health states
         registerEvent("low_health") {
             Minecraft.getInstance().player?.let {
                 it.health / it.maxHealth <= 0.25f
@@ -124,14 +118,12 @@ object EventSystem {
             } == true
         }
 
-        // Combat
         registerEvent("player_attacking") {
             Minecraft.getInstance().player?.let {
                 it.swinging && it.swingTime < 3
             } == true
         }
 
-        // Equipment
         registerEvent("wearing_helmet") {
             Minecraft.getInstance().player?.getItemBySlot(EquipmentSlot.HEAD)?.isEmpty == false
         }

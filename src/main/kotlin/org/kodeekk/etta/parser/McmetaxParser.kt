@@ -7,18 +7,6 @@ import org.kodeekk.etta.core.AnimationSegment
 import org.kodeekk.etta.expression.ExpressionEvaluator
 import org.slf4j.LoggerFactory
 
-/**
- * Enhanced MCMETAX Parser v2.1
- *
- * New features:
- * - Multiline properties with indentation
- * - Frame arrays: [0, 2, 4], [0-5, 10-15], 0-20:2
- * - Variables and reusable conditions
- * - Weighted segments
- * - Conditional frame selection
- * - Per-frame timing
- * - Transition triggers
- */
 object McmetaxParser {
     private val logger = LoggerFactory.getLogger("ETTA-McmetaxParser")
 
@@ -36,12 +24,10 @@ object McmetaxParser {
                 try {
                     when {
                         line.startsWith("[") && line.endsWith("]") -> {
-                            // Save previous section
                             currentSection?.let {
                                 processSection(it, currentProperties, context, textureId)
                             }
 
-                            // Start new section
                             currentSection = parseSection(line)
                             currentProperties.clear()
                         }
@@ -50,7 +36,6 @@ object McmetaxParser {
                             val trimmedKey = key.trim()
                             val trimmedValue = value.trim()
 
-                            // Handle multiline continuation
                             if (currentProperties.containsKey(trimmedKey)) {
                                 currentProperties[trimmedKey] =
                                     currentProperties[trimmedKey]!! + " " + trimmedValue
@@ -64,18 +49,15 @@ object McmetaxParser {
                 }
             }
 
-            // Process last section
             currentSection?.let {
                 processSection(it, currentProperties, context, textureId)
             }
 
-            // Build final metadata
             if (context.segments.isEmpty()) {
                 logger.error("No segments found for $textureId")
                 return null
             }
 
-            // Validate single fallback
             val fallbackCount = context.segments.count {
                 it is AnimationSegment.FallbackSegment
             }
@@ -101,19 +83,15 @@ object McmetaxParser {
         }
     }
 
-    /**
-     * Preprocesses lines: removes comments, handles indentation for multiline
-     */
     private fun preprocessLines(content: String): List<String> {
         val lines = mutableListOf<String>()
         var currentLine = StringBuilder()
 
         for (rawLine in content.lines()) {
-            val line = rawLine.split("#")[0].trimEnd() // Remove comments
+            val line = rawLine.split("#")[0].trimEnd()
 
             if (line.isEmpty()) continue
 
-            // Check if continuation (starts with whitespace and not a section)
             if (line.startsWith(" ") || line.startsWith("\t")) {
                 if (!line.trim().startsWith("[")) {
                     currentLine.append(" ").append(line.trim())
@@ -121,7 +99,6 @@ object McmetaxParser {
                 }
             }
 
-            // Save previous line
             if (currentLine.isNotEmpty()) {
                 lines.add(currentLine.toString())
             }
@@ -129,7 +106,6 @@ object McmetaxParser {
             currentLine = StringBuilder(line.trim())
         }
 
-        // Add last line
         if (currentLine.isNotEmpty()) {
             lines.add(currentLine.toString())
         }
@@ -259,10 +235,7 @@ object McmetaxParser {
             }
 
             "weighted" -> {
-                // Weighted random frame selection
                 val frames = parseFrameSpec(props["frames"] ?: "[0]", context)
-
-                // For now, convert to simple sequence
                 // TODO: Implement proper weighted segment type
                 AnimationSegment.SequenceSegment(
                     name = name,
@@ -278,8 +251,6 @@ object McmetaxParser {
             }
 
             "conditional" -> {
-                // Conditional frame selection based on sub-expressions
-                // For now, parse as regular sequence
                 val frames = parseFrameSpec(props["frames"] ?: "0-0", context)
 
                 AnimationSegment.SequenceSegment(
@@ -296,7 +267,6 @@ object McmetaxParser {
             }
 
             "transition" -> {
-                // One-shot triggered animation
                 val frames = parseFrameSpec(props["frames"] ?: "0-0", context)
 
                 AnimationSegment.OneShotSegment(
@@ -331,20 +301,10 @@ object McmetaxParser {
         }
     }
 
-    /**
-     * Parses frame specifications:
-     * - "5" -> [5]
-     * - "0-15" -> [0,1,2,...,15]
-     * - "[0, 2, 4]" -> [0,2,4]
-     * - "[0-5, 10-15]" -> [0,1,2,3,4,5,10,11,12,13,14,15]
-     * - "0-20:2" -> [0,2,4,6,...,20]
-     * - "$variable" -> resolve variable
-     */
     private fun parseFrameSpec(spec: String, context: ParseContext): List<Int> {
         val expanded = expandVariables(spec, context)
         val frames = mutableListOf<Int>()
 
-        // Handle array syntax [...]
         if (expanded.startsWith("[") && expanded.endsWith("]")) {
             val content = expanded.substring(1, expanded.length - 1)
             val parts = content.split(",")
@@ -360,14 +320,12 @@ object McmetaxParser {
     }
 
     private fun parseFramePart(part: String, context: ParseContext): List<Int> {
-        // Step syntax: 0-20:2
         if (part.contains(":")) {
             val (range, stepStr) = part.split(":", limit = 2)
             val step = stepStr.toIntOrNull() ?: 1
             return parseFramePart(range, context).filterIndexed { i, _ -> i % step == 0 }
         }
 
-        // Range syntax: 0-15
         if (part.contains("-")) {
             val parts = part.split("-", limit = 2)
             val start = parts[0].trim().toIntOrNull() ?: 0
@@ -375,23 +333,17 @@ object McmetaxParser {
             return (start..end).toList()
         }
 
-        // Single number
         val num = part.toIntOrNull()
         return if (num != null) listOf(num) else emptyList()
     }
 
-    /**
-     * Expands $variable references
-     */
     private fun expandVariables(text: String, context: ParseContext): String {
         var result = text
 
-        // Expand variables
         for ((key, value) in context.variables) {
             result = result.replace("$$key", value)
         }
 
-        // Expand named conditions
         for ((key, value) in context.namedConditions) {
             result = result.replace("$$key", "($value)")
         }
