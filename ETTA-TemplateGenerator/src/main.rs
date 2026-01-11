@@ -11,7 +11,7 @@ fn main() -> std::io::Result<()> {
         std::process::exit(1);
     }
 
-    let description = &args[1]; // first argument
+    let description = &args[1];
     let item_path = PathBuf::from(&args[2]);
 
     let item_name = item_path
@@ -20,17 +20,14 @@ fn main() -> std::io::Result<()> {
         .to_str()
         .unwrap();
 
-    // Root directory = description (example used "abc")
     let root = PathBuf::from(description);
 
     let etta_dir = root
         .join(item_path.parent().unwrap())
         .join(format!("{item_name}.etta"));
 
-    // Create directories
     fs::create_dir_all(etta_dir.join("frames"))?;
 
-    // ---- pack.mcmeta ----
     let mut pack_file = File::create(root.join("pack.mcmeta"))?;
     write!(
         pack_file,
@@ -44,7 +41,6 @@ fn main() -> std::io::Result<()> {
         description
     )?;
 
-    // ---- diamond_sword.mcmetax ----
     let mut mcmetax = File::create(etta_dir.join(format!("{item_name}.mcmetax")))?;
     mcmetax.write_all(
         b"[animation]
